@@ -1,13 +1,14 @@
 {
   "name": "nabo-image-server",
   "version": "1.0.0",
-  "description": "Proxy server for Nabo Instagram automation - Gemini image generation",
+  "description": "Proxy server for Nabo Instagram automation",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "canvas": "^2.11.2"
   }
 }
