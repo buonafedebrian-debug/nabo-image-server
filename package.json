@@ -1,14 +1,17 @@
 {
   "name": "nabo-image-server",
-  "version": "1.0.0",
-  "description": "Proxy server for Nabo Instagram automation",
+  "version": "2.0.0",
+  "description": "Nabo Instagram slide renderer — Puppeteer HTML-to-PNG",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "canvas": "^2.11.2"
+    "express": "^4.18.2",
+    "puppeteer": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
