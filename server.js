@@ -6,12 +6,12 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '30mb' }));
 
-// ── image store (30 min TTL) ──────────────────────────────────────────────────
+// ── image store (60 min TTL) ──────────────────────────────────────────────────
 var imageStore = {};
 function cleanupOldImages() {
   var now = Date.now();
   Object.keys(imageStore).forEach(function(id) {
-    if (now - imageStore[id].createdAt > 30 * 60 * 1000) delete imageStore[id];
+    if (now - imageStore[id].createdAt > 60 * 60 * 1000) delete imageStore[id];
   });
 }
 function storeAndGetUrl(req, base64, mimeType) {
@@ -20,20 +20,24 @@ function storeAndGetUrl(req, base64, mimeType) {
   cleanupOldImages();
   var host = req.get('host');
   var protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  return { id, publicUrl: protocol + '://' + host + '/img/' + id };
+  // Always use .png extension so Instagram recognises it as an image
+  return { id, publicUrl: protocol + '://' + host + '/img/' + id + '.png' };
 }
 
 app.get('/', function(req, res) {
   res.json({ status: 'Nabo image server running', images: Object.keys(imageStore).length });
 });
 
+// Serve image — accept both /img/:id and /img/:id.png
 app.get('/img/:id', function(req, res) {
-  var entry = imageStore[req.params.id];
+  // Strip .png extension if present
+  var rawId = req.params.id.replace(/\.png$/i, '');
+  var entry = imageStore[rawId];
   if (!entry) return res.status(404).send('Image not found or expired');
   var buf = Buffer.from(entry.base64, 'base64');
-  res.set('Content-Type', entry.mimeType);
+  res.set('Content-Type', 'image/png');
   res.set('Content-Length', buf.length);
-  res.set('Cache-Control', 'public, max-age=1800');
+  res.set('Cache-Control', 'public, max-age=3600');
   res.send(buf);
 });
 
@@ -43,6 +47,23 @@ app.post('/store-image', function(req, res) {
   if (!image) return res.status(400).json({ error: 'No image data' });
   var stored = storeAndGetUrl(req, image, mimeType || 'image/png');
   res.json({ publicUrl: stored.publicUrl });
+});
+
+// Proxy an external image URL (fixes CORS for Unsplash etc.)
+app.get('/proxy-image', async function(req, res) {
+  var url = req.query.url;
+  if (!url) return res.status(400).json({ error: 'Missing url param' });
+  try {
+    var r = await fetch(url, { headers: { 'User-Agent': 'NaboBot/1.0' } });
+    if (!r.ok) return res.status(r.status).send('Upstream error');
+    var buf = Buffer.from(await r.arrayBuffer());
+    var ct = r.headers.get('content-type') || 'image/jpeg';
+    res.set('Content-Type', ct);
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.send(buf);
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Gemini image generation (optional, for hero)
